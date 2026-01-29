@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【BMSFormer論文解説】効率的な電池健全度（SOH）推定</title>
+    <style>
+        :root {
+            --sidebar-width: 280px;
+            --primary-color: #2c3e50;
+            --link-color: #0366d6;
+            --bg-color: #ffffff;
+            --sidebar-bg: #f8f9fa;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+            line-height: 1.6;
+            color: #24292e;
+            margin: 0;
+            display: flex;
+        }
+
+        /* サイドバーのスタイル */
+        #sidebar {
+            width: var(--sidebar-width);
+            height: 100vh;
+            position: fixed;
+            left: 0;
+            top: 0;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid #e1e4e8;
+            overflow-y: auto;
+            padding: 20px;
+            box-sizing: border-box;
+            z-index: 1000;
+        }
+
+        #sidebar h3 {
+            margin-top: 0;
+            font-size: 1.2em;
+            color: var(--primary-color);
+            border-bottom: 2px solid #e1e4e8;
+            padding-bottom: 10px;
+        }
+
+        #sidebar ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+
+        #sidebar ul li {
+            margin-bottom: 8px;
+        }
+
+        #sidebar ul ul {
+            padding-left: 15px;
+            margin-top: 5px;
+        }
+
+        #sidebar a {
+            text-decoration: none;
+            color: #586069;
+            font-size: 14px;
+            display: block;
+            padding: 4px 0;
+            transition: color 0.2s;
+        }
+
+        #sidebar a:hover {
+            color: var(--link-color);
+            font-weight: 600;
+        }
+
+        /* メインコンテンツエリアのスタイル */
+        #main-content {
+            margin-left: var(--sidebar-width);
+            padding: 40px 60px;
+            max-width: 900px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* 見出しのスタイル */
+        h1, h2, h3, h4 {
+            color: var(--primary-color);
+            margin-top: 24px;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+
+        h1 { font-size: 1.8em; border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
+        h2 { font-size: 1.5em; border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; margin-top: 1.5em; }
+        h3 { font-size: 1.25em; }
+        h4 { font-size: 1em; }
+
+        /* リンクのスタイル */
+        a { color: var(--link-color); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        /* 引用ブロックのスタイル */
+        blockquote {
+            margin: 0;
+            padding: 0 1em;
+            color: #6a737d;
+            border-left: 0.25em solid #dfe2e5;
+            background-color: #fafbfc;
+            padding-top: 10px;
+            padding-bottom: 10px;
+            margin-bottom: 16px;
+        }
+
+        /* テーブルのスタイル */
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 16px;
+            display: block;
+            overflow-x: auto;
+        }
+
+        th, td {
+            border: 1px solid #dfe2e5;
+            padding: 6px 13px;
+        }
+
+        tr:nth-child(2n) {
+            background-color: #f6f8fa;
+        }
+
+        th {
+            background-color: #f3f4f6;
+            font-weight: 600;
+            text-align: left;
+        }
+
+        /* 画像のスタイル */
+        img {
+            max-width: 100%;
+            height: auto;
+            border-style: none;
+        }
+
+        .img-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .img-caption {
+            color: #6a737d;
+            font-style: italic;
+            margin-top: 8px;
+            font-size: 0.9em;
+        }
+
+        /* コードブロックのスタイル */
+        pre {
+            background-color: #f6f8fa;
+            border-radius: 6px;
+            padding: 16px;
+            overflow: auto;
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 85%;
+            line-height: 1.45;
+        }
+
+        /* バッジコンテナ */
+        .badges {
+            margin-bottom: 20px;
+        }
+        .badges a {
+            margin-right: 5px;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- サイドバーナビゲーション -->
+    <div id="sidebar">
+        <h3>目次</h3>
+        <ul>
+            <li><a href="#1-研究背景と核心課題">1. 研究背景と核心課題</a></li>
+            <li><a href="#2-健康指標hiの抽出ロジック">2. 健康指標（HI）の抽出ロジック</a></li>
+            <li><a href="#3-bmsformer-モデルのアーキテクチャ設計">3. BMSFormer モデルのアーキテクチャ設計</a>
+                <ul>
+                    <li><a href="#31-局所-全域融合アテンション機構-lgfa">3.1 局所・全域融合アテンション機構 (LGFA)</a></li>
+                    <li><a href="#32-深層セパラブル畳み込みモジュール-dsconv">3.2 深層セパラブル畳み込みモジュール (DSConv)</a></li>
+                </ul>
+            </li>
+            <li><a href="#4-実験検証と性能評価">4. 実験検証と性能評価</a>
+                <ul>
+                    <li><a href="#41-精度の比較">4.1 精度の比較</a></li>
+                    <li><a href="#42-実装効率の比較">4.2 実装効率の比較</a></li>
+                    <li><a href="#43-安定性分析">4.3 安定性分析</a></li>
+                </ul>
+            </li>
+            <li><a href="#5-結論">5. 結論</a></li>
+            <li><a href="#論文リンク">論文リンク</a></li>
+        </ul>
+    </div>
+
+    <!-- メインコンテンツ -->
+    <div id="main-content">
+        <h1 id="bmsformer論文ノート効率的な電池健全度推定局所-全域融合アテンション駆動型軽量ディープラーニングモデル">【BMSFormer論文ノート】効率的な電池健全度（SOH）推定——局所・全域融合アテンション駆動型軽量ディープラーニングモデル</h1>
+
+        <blockquote>
+            <p><strong>Efficient State-of-Health Estimation of Lithium-ion Batteries</strong></p>
+            <p><strong>Paper Title:</strong> <em>BMSFormer: An efficient deep learning model for online state-of-health estimation of lithium-ion batteries under high-frequency early SOC data with strong correlated single health indicator</em></p>
+            <p><strong>Journal:</strong> <em>Energy (Elsevier), Vol. 313, 2024</em></p>
+            <p><strong>DOI:</strong> <a href="https://doi.org/10.1016/j.energy.2024.134030">10.1016/j.energy.2024.134030</a></p>
+        </blockquote>
+
+        <div class="badges">
+            <a href="https://doi.org/10.1016/j.energy.2024.134030"><img src="https://img.shields.io/badge/DOI-10.1016%2Fj.energy.2024.134030-blue" alt="DOI"></a>
+            <a href="https://doi.org/10.1016/j.energy.2024.134030"><img src="https://img.shields.io/badge/Status-Published-brightgreen" alt="Status"></a>
+            <a href="https://doi.org/10.1016/j.energy.2024.134030"><img src="https://img.shields.io/badge/Topic-Efficiency%20Estimation-orange" alt="Topic"></a>
+        </div>
+
+        <h3 id="1-研究背景と核心課題">1. 研究背景と核心課題</h3>
+        <p>リチウムイオン電池の健全度（State-of-Health, SOH）は、現在の容量と定格容量の比率として定義されます。電池内部の劣化（活性物質の損失や固体電解質界面（SEI）膜の増厚など）は複雑な電気化学プロセスであるため、SOHは物理センサで直接測定することができず、通常は外部から観測可能な信号（電圧、電流、温度など）を用いた回帰推定が必要となります。</p>
+        <p>現在、産業界における電池管理システム（BMS）のSOH推定には、主に2つの核心的な要求があります：</p>
+        <ul>
+            <li><strong>高精度</strong>：電池容量の減衰過程における非線形な変動を正確に捉えること。</li>
+            <li><strong>低消費電力</strong>：BMSのハードウェア資源（メモリおよび計算能力）は限られているため、ディープラーニングモデルはオンラインでリアルタイム実行可能なほど軽量であること。</li>
+        </ul>
+        <p>既存のLSTMや従来のTransformerなどの手法は、長系列のグローバルな依存関係の処理が困難であったり、計算コスト（O(N^2)の計算複雑度）が大きすぎたりするため、組込みチップへの実装には課題がありました。</p>
+
+        <h3 id="2-健康指標hiの抽出ロジック">2. 健康指標（HI）の抽出ロジック</h3>
+        <p>ディープラーニングモデルの学習において、入力データの質がモデルの性能限界を決定します。本論文では、高い相関性を持つ単一の健康指標抽出手法を採用しています：</p>
+        <ul>
+            <li><strong>物理的根拠</strong>：電池の毎日の充電過程において、特定の電圧区間の充電時間は電池の劣化と非常に高い相関があります。</li>
+            <li><strong>抽出プロセス</strong>：高周波の初期充電状態（SOC）区間（例：充電段階 3.8 V–4.2 V、放電段階 3.8 V–3.4 V）に対して段階的なウィンドウサーチを行います。</li>
+            <li><strong>相関性の検証</strong>：実験結果から、この手法で特定された定電流充電時間（CCCT）と電池SOHのピアソン相関係数（PCC）は、平均で <strong>0.99</strong> を超えることが示されました。これは、単一の指標だけで十分な情報を提供できることを意味し、入力特徴量を簡素化すると同時に前処理コストを削減できます。</li>
+        </ul>
+
+        <h3 id="3-bmsformer-モデルのアーキテクチャ設計">3. BMSFormer モデルのアーキテクチャ設計</h3>
+        
+        <div class="img-container" align="center">
+            <img src="https://github.com/user-attachments/assets/0b8260ba-96a6-4909-b698-c41b2bd6e7aa" alt="BMSFormer フレームワーク" />
+            <p class="img-caption"><em>図1 BMSFormer フレームワーク (a) LGFA モジュール (b) BMSFormer ブロック (c) DSConv-L モジュール (d) BMSFormer の核心構造</em></p>
+        </div>
+
+        <p>図1はBMSFormerのフレームワーク図です。計算効率と特徴抽出能力を両立させるため、BMSFormerモデルは以下の2つの核心的な改良を導入しています：</p>
+
+        <h4 id="31-局所-全域融合アテンション機構-lgfa">3.1 局所・全域融合アテンション機構 (LGFA)</h4>
+        
+        <div class="img-container" align="center">
+            <img src="https://github.com/user-attachments/assets/181512b0-88ce-4ccc-9eae-ef28f092aba5" width="80%" alt="LGFA モジュール" />
+            <p class="img-caption"><em>図2 (a) 従来の Softmax アテンション機構 (b) 従来の線形アテンション機構、(c) 提案された局所・全域融合アテンションモジュールの違い</em></p>
+        </div>
+
+        <p>従来の自己アテンション機構（Softmax-based Attention）の計算量は、入力系列長 N の増加に伴い、二乗オーダーで増加します。BMSFormer は局所・全域融合アテンションモジュールを採用しています：</p>
+        <ul>
+            <li><strong>線形計算量</strong>：結合法則（Associative Property）を利用して計算順序を変更することで、計算複雑度を O(N^2) から O(N) に低減しました。</li>
+            <li><strong>特徴抽出</strong>：ReLU活性化関数を通じて特徴の表現能力を強化し、長期的な容量減衰傾向（全域）を注視するだけでなく、容量の回復や突発的な変動（局所）も敏感に捉えることができます。</li>
+        </ul>
+
+        <h4 id="32-深層セパラブル畳み込みモジュール-dsconv">3.2 深層セパラブル畳み込みモジュール (DSConv)</h4>
+        
+        <div class="img-container" align="center">
+            <img src="https://github.com/user-attachments/assets/6f4b5029-f7e9-48a0-955e-eab65437577c" width="80%" alt="DSConv モジュール" />
+            <p class="img-caption"><em>図3 (a) 標準畳み込み (b) 標準的な深層セパラブル畳み込み (c) DSConv-S モジュール (d) DSConv-L モジュールの基本構造</em></p>
+        </div>
+
+        <p>モデルには、異なる倍率の2種類の深層セパラブル畳み込み（DSConv-S：小カーネル、DSConv-L：大カーネル）が組み込まれています。</p>
+        <ul>
+            <li><strong>原理</strong>：標準的な畳み込みを、深層畳み込み（Depthwise）と点別畳み込み（Pointwise）に分解します。</li>
+            <li><strong>役割</strong>：パラメータ数を大幅に増やすことなく、マルチスケールおよびマルチチャネルの特徴を融合し、特徴の多様性を高めます。これは、電池の異なる劣化段階における微細な特徴を識別する上で重要な役割を果たします。</li>
+        </ul>
+
+        <h3 id="4-実験検証と性能評価">4. 実験検証と性能評価</h3>
+        <p>論文では、3つの主要な公開データセット（Oxford、NASA、CALCE）を使用してモデルの検証を行っています。これらのデータセットは、異なる正極材料（LCO、NCA、NCO-LCO）および異なる動作条件を網羅しています。</p>
+
+        <h3>表1 3種類の電池データセットの詳細な説明</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th><strong>データソース (Data Sources)</strong></th>
+                    <th>Oxford</th>
+                    <th>NASA</th>
+                    <th>CALCE</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>製造メーカー (Manufacturer)</strong></td>
+                    <td>Kokam</td>
+                    <td>LG Chem</td>
+                    <td>LG Chem</td>
+                </tr>
+                <tr>
+                    <td><strong>電池タイプ (Cell types)</strong></td>
+                    <td>Pouch (ラミネート型)</td>
+                    <td>18650 Cylindrical (円筒型)</td>
+                    <td>Prismatic (角型)</td>
+                </tr>
+                <tr>
+                    <td><strong>正極材料 (Cathode material)</strong></td>
+                    <td>NCO-LCO</td>
+                    <td>NCA</td>
+                    <td>LCO</td>
+                </tr>
+                <tr>
+                    <td><strong>選定された電池シリーズ</strong></td>
+                    <td>Cell (1–8)</td>
+                    <td>B00 (05–07 and 18)</td>
+                    <td>CS2 (35–38)</td>
+                </tr>
+                <tr>
+                    <td><strong>電池数</strong></td>
+                    <td>8</td>
+                    <td>4</td>
+                    <td>4</td>
+                </tr>
+                <tr>
+                    <td><strong>定格容量 (Rated capacity, Ah)</strong></td>
+                    <td>0.74</td>
+                    <td>2</td>
+                    <td>1.1</td>
+                </tr>
+                <tr>
+                    <td><strong>寿命閾値 (Failure threshold)</strong></td>
+                    <td>70%</td>
+                    <td>1.4 Ah (70%)</td>
+                    <td>0.84 Ah (76.4%)</td>
+                </tr>
+                <tr>
+                    <td><strong>充電プロトコル (Charge protocol)</strong></td>
+                    <td>CC (2C)</td>
+                    <td>CC-CV (0.75C, 4.2V)</td>
+                    <td>CC-CV (0.5C, 4.2V)</td>
+                </tr>
+                <tr>
+                    <td><strong>放電プロトコル (Discharge protocol)</strong></td>
+                    <td>Variance (動作条件変化)</td>
+                    <td>CC (1C)</td>
+                    <td>CC (1C)</td>
+                </tr>
+                <tr>
+                    <td><strong>終止電圧 (Cut-off voltage, V)</strong></td>
+                    <td>充電4.2、放電2.7</td>
+                    <td>充電4.2、放電2.7/2.5/2.2/2.5</td>
+                    <td>充電4.2、放電2.7</td>
+                </tr>
+                <tr>
+                    <td><strong>終止電流 (Cut-off current, A)</strong></td>
+                    <td>–</td>
+                    <td>充電 0.02</td>
+                    <td>充電 0.05</td>
+                </tr>
+                <tr>
+                    <td><strong>実験温度 (Experiment temperature, °C)</strong></td>
+                    <td>40</td>
+                    <td>24</td>
+                    <td>24</td>
+                </tr>
+                <tr>
+                    <td><strong>サイクル数 (Cycle numbers)</strong></td>
+                    <td>8200/7700/8100/5100/ 5000/5000/8100/8100</td>
+                    <td>168/168/168/132</td>
+                    <td>881/935/971/995</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h4 id="41-精度の比較">4.1 精度の比較</h4>
+        <p>LSTM、Transformer、CNN-LSTM、CNN-Transformer などのモデルとの比較実験において、BMSFormer はすべてのテスト用電池でより低い MAE（平均絶対誤差）および RMSE（二乗平均平方根誤差）を示しました。電池のSOHに激しい変動が生じた場合でも、予測曲線は真の値に密接に追従しています。</p>
+
+        <h4 id="42-実装効率の比較">4.2 実装効率の比較</h4>
+        <p>実験では、モデルのハードウェアコストに重点を置いた分析が行われました。同等の精度レベルにおいて：</p>
+        <ul>
+            <li><strong>パラメータ数とストレージ</strong>：BMSFormer のストレージサイズは約 <strong>36.37 KB</strong> です。</li>
+            <li><strong>計算速度</strong>：線形アテンション機構の採用により、学習時間は大幅に短縮され、FLOPs（浮動小数点演算数）も低い水準に維持されています。</li>
+        </ul>
+
+        <h4 id="43-安定性分析">4.3 安定性分析</h4>
+        <p>層数、学習率、次元数など、384通りの異なるハイパーパラメータの組み合わせをテストした結果、BMSFormer は異なる設定下でも安定した推定性能を維持することが確認されました。この堅牢性（ロバスト性）は実際の工学応用において非常に重要であり、電池の種類ごとに煩雑なパラメータ調整を行う必要がないことを意味します。</p>
+
+        <h3 id="5-結論">5. 結論</h3>
+        <p>BMSFormer は、電池の健全度評価において精度と効率のバランスが取れたソリューションを提供します。効率的なアテンション設計と軽量な畳み込みモジュールにより、リソースの限られたハードウェア上で信頼性の高い SOH オンライン監視を実現できます。これは、次世代のインテリジェントな電池管理システムの開発を支える技術基盤となります。</p>
+
+        <hr>
+
+        <h3 id="論文リンク">論文リンク</h3>
+        <p><strong>Title:</strong> BMSFormer: An efficient deep learning model for online state-of-health estimation of lithium-ion batteries under high-frequency early SOC data with strong correlated single health indicator</p>
+        <p><strong>Journal:</strong> <em>Energy</em>, 2024</p>
+        <p><strong>DOI:</strong> <a href="https://doi.org/10.1016/j.energy.2024.134030">10.1016/j.energy.2024.134030</a></p>
+
+        <pre><code class="language-bibtex">@article{li2024bmsformer,
+  title={BMSFormer: An efficient deep learning model for online state-of-health estimation of lithium-ion batteries under high-frequency early SOC data with strong correlated single health indicator},
+  author={Li, Xiaopeng and Zhao, Minghang and Zhong, Shisheng and Li, Junfu and Fu, Song and Yan, Zhiqi},
+  journal={Energy},
+  volume={313},
+  pages={134030},
+  year={2024},
+  publisher={Elsevier}
+}</code></pre>
+    </div>
+
+</body>
+</html>
