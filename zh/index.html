@@ -11,6 +11,8 @@
             --link-color: #0366d6;
             --bg-color: #ffffff;
             --sidebar-bg: #f8f9fa;
+            --border-color: #e1e4e8;
+            --text-light: #6a737d;
         }
 
         html {
@@ -182,6 +184,17 @@
 
     <!-- 侧边栏导航 -->
     <div id="sidebar">
+        <!-- 语言切换按钮开始 -->
+    <div style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); display: flex; gap: 8px; flex-wrap: wrap;">
+        <span style="font-size: 0.8rem; color: var(--text-light); width: 100%;">语言 / Language / 言語 / 언어:</span>
+        <a href="../zh/index.html" style="color: var(--primary-color); font-weight: bold; font-size: 0.85rem;">中文</a>
+        <a href="../en/index.html" style="color: var(--primary-color); font-weight: bold; font-size: 0.85rem;">English</a>
+        <a href="../jp/index.html" style="color: var(--primary-color); font-weight: bold; font-size: 0.85rem;">日本語</a>
+        <a href="../kr/index.html" style="color: var(--primary-color); font-weight: bold; font-size: 0.85rem;">한국어</a>
+    </div>
+        <!-- 语言切换按钮结束 -->
+ 
+
         <h3>目录</h3>
         <ul>
             <li><a href="#1-研究背景与核心问题">1. 研究背景与核心问题</a></li>
@@ -404,3 +417,4 @@
 
 </body>
 </html>
+
