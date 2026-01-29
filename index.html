@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>[BMSFormer Paper Notes] Efficient SOH Estimation of Lithium-ion Batteries</title>
+    <style>
+        :root {
+            --sidebar-width: 280px;
+            --primary-color: #2c3e50;
+            --link-color: #0366d6;
+            --bg-color: #ffffff;
+            --sidebar-bg: #f8f9fa;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+            line-height: 1.6;
+            color: #24292e;
+            margin: 0;
+            display: flex;
+        }
+
+        /* Sidebar Styles */
+        #sidebar {
+            width: var(--sidebar-width);
+            height: 100vh;
+            position: fixed;
+            left: 0;
+            top: 0;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid #e1e4e8;
+            overflow-y: auto;
+            padding: 20px;
+            box-sizing: border-box;
+            z-index: 1000;
+        }
+
+        #sidebar h3 {
+            margin-top: 0;
+            font-size: 1.2em;
+            color: var(--primary-color);
+            border-bottom: 2px solid #e1e4e8;
+            padding-bottom: 10px;
+        }
+
+        #sidebar ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+
+        #sidebar ul li {
+            margin-bottom: 8px;
+        }
+
+        #sidebar ul ul {
+            padding-left: 15px;
+            margin-top: 5px;
+        }
+
+        #sidebar a {
+            text-decoration: none;
+            color: #586069;
+            font-size: 14px;
+            display: block;
+            padding: 4px 0;
+            transition: color 0.2s;
+        }
+
+        #sidebar a:hover {
+            color: var(--link-color);
+            font-weight: 600;
+        }
+
+        /* Main Content Styles */
+        #main-content {
+            margin-left: var(--sidebar-width);
+            padding: 40px 60px;
+            max-width: 900px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* Typography */
+        h1, h2, h3, h4 {
+            color: var(--primary-color);
+            margin-top: 24px;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+
+        h1 { font-size: 2em; border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
+        h2 { font-size: 1.5em; border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; margin-top: 1.5em; }
+        h3 { font-size: 1.25em; }
+        h4 { font-size: 1em; }
+
+        a { color: var(--link-color); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        blockquote {
+            margin: 0;
+            padding: 0.5em 1em;
+            color: #6a737d;
+            border-left: 0.25em solid #dfe2e5;
+            background-color: #fafbfc;
+            margin-bottom: 16px;
+        }
+
+        /* Table Styles */
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 16px;
+            display: block;
+            overflow-x: auto;
+        }
+
+        th, td {
+            border: 1px solid #dfe2e5;
+            padding: 8px 13px;
+        }
+
+        tr:nth-child(2n) {
+            background-color: #f6f8fa;
+        }
+
+        th {
+            background-color: #f3f4f6;
+            font-weight: 600;
+            text-align: left;
+        }
+
+        /* Image Styles */
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .img-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .img-caption {
+            color: #6a737d;
+            font-style: italic;
+            margin-top: 8px;
+            font-size: 0.9em;
+        }
+
+        /* Code Block */
+        pre {
+            background-color: #f6f8fa;
+            border-radius: 6px;
+            padding: 16px;
+            overflow: auto;
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 85%;
+            line-height: 1.45;
+        }
+
+        .badges {
+            margin-bottom: 20px;
+        }
+        .badges a {
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar Navigation -->
+    <div id="sidebar">
+        <h3>Contents</h3>
+        <ul>
+            <li><a href="#1-research-background">1. Research Background</a></li>
+            <li><a href="#2-hi-extraction">2. Health Indicator (HI) Extraction</a></li>
+            <li><a href="#3-bmsformer-architecture">3. BMSFormer Model Architecture</a>
+                <ul>
+                    <li><a href="#31-lgfa-mechanism">3.1 Local-Global Fusion Attention (LGFA)</a></li>
+                    <li><a href="#32-dsconv-module">3.2 Depthwise Separable Convolution (DSConv)</a></li>
+                </ul>
+            </li>
+            <li><a href="#4-experimental-validation">4. Validation & Performance</a>
+                <ul>
+                    <li><a href="#41-accuracy">4.1 Accuracy Comparison</a></li>
+                    <li><a href="#42-deployment-efficiency">4.2 Deployment Efficiency</a></li>
+                    <li><a href="#43-stability">4.3 Stability Analysis</a></li>
+                </ul>
+            </li>
+            <li><a href="#5-conclusion">5. Conclusion</a></li>
+            <li><a href="#paper-link">Paper Link</a></li>
+        </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div id="main-content">
+        <h1 id="title">【BMSFormer Paper Notes】Efficient State-of-Health Estimation — A Lightweight Deep Learning Model Driven by Local-Global Fusion Attention</h1>
+
+        <blockquote>
+            <p><strong>Efficient State-of-Health Estimation of Lithium-ion Batteries</strong></p>
+            <p><strong>Paper Title:</strong> <em>BMSFormer: An efficient deep learning model for online state-of-health estimation of lithium-ion batteries under high-frequency early SOC data with strong correlated single health indicator</em></p>
+            <p><strong>Journal:</strong> <em>Energy (Elsevier), Vol. 313, 2024</em></p>
+            <p><strong>DOI:</strong> <a href="https://doi.org/10.1016/j.energy.2024.134030">10.1016/j.energy.2024.134030</a></p>
+        </blockquote>
+
+        <div class="badges">
+            <a href="https://doi.org/10.1016/j.energy.2024.134030"><img src="https://img.shields.io/badge/DOI-10.1016%2Fj.energy.2024.134030-blue" alt="DOI"></a>
+            <a href="https://doi.org/10.1016/j.energy.2024.134030"><img src="https://img.shields.io/badge/Status-Published-brightgreen" alt="Status"></a>
+            <a href="https://doi.org/10.1016/j.energy.2024.134030"><img src="https://img.shields.io/badge/Topic-Efficiency%20Estimation-orange" alt="Topic"></a>
+        </div>
+
+        <h3 id="1-research-background">1. Research Background & Core Issues</h3>
+        <p>The State-of-Health (SOH) of a lithium-ion battery is defined as the ratio of its current capacity to its rated capacity. Because internal degradation—such as loss of active material and growth of the solid electrolyte interface (SEI) layer—involves complex electrochemical processes, SOH cannot be directly measured by physical sensors. Instead, it must be estimated via regression using observable external signals like voltage, current, and temperature.</p>
+        <p>Currently, the industry demands two core requirements for SOH estimation in Battery Management Systems (BMS):</p>
+        <ul>
+            <li><strong>High Accuracy:</strong> The ability to precisely capture non-linear fluctuations during the battery capacity fade process.</li>
+            <li><strong>Low Power Consumption:</strong> Due to limited hardware resources (memory and computing power) in BMS, deep learning models must be lightweight enough to support real-time online operation.</li>
+        </ul>
+        <p>Existing methods such as LSTM or traditional Transformers either struggle with long-sequence global dependencies or impose excessive computational overhead (O(N^2) complexity), making them difficult to deploy on embedded chips.</p>
+
+        <h3 id="2-hi-extraction">2. Health Indicator (HI) Extraction Logic</h3>
+        <p>Before training a deep learning model, the quality of input data determines the performance ceiling. This paper employs a method for extracting a highly correlated single health indicator:</p>
+        <ul>
+            <li><strong>Physical Basis:</strong> During the daily charging process, the charging duration within specific voltage segments is highly correlated with battery aging.</li>
+            <li><strong>Extraction Process:</strong> A sliding window search is performed on high-frequency early State-of-Charge (SOC) segments (e.g., 3.8 V–4.2 V during charging, or 3.8 V–3.4 V during discharging).</li>
+            <li><strong>Correlation Validation:</strong> Experimental results show that the Constant Current Charge Time (CCCT) determined by this method has an average Pearson Correlation Coefficient (PCC) exceeding <strong>0.99</strong> with battery SOH. This implies a single indicator provides sufficient information, simplifying input features while reducing preprocessing costs.</li>
+        </ul>
+
+        <h3 id="3-bmsformer-architecture">3. BMSFormer Model Architecture Design</h3>
+        
+        <div class="img-container">
+            <img src="https://github.com/user-attachments/assets/0b8260ba-96a6-4909-b698-c41b2bd6e7aa" alt="BMSFormer Framework" />
+            <p class="img-caption"><em>Fig. 1 BMSFormer Framework: (a) LGFA Module, (b) BMSFormer Block, (c) DSConv-L Module, (d) Core BMSFormer Structure</em></p>
+        </div>
+
+        <p>As shown in Figure 1, to balance computational efficiency with feature capture capability, the BMSFormer model introduces two core innovations:</p>
+
+        <h4 id="31-lgfa-mechanism">3.1 Local-Global Fusion Attention (LGFA)</h4>
+        
+        <div class="img-container">
+            <img src="https://github.com/user-attachments/assets/181512b0-88ce-4ccc-9eae-ef28f092aba5" width="80%" alt="LGFA Module Comparison" />
+            <p class="img-caption"><em>Fig. 2 Differences between (a) traditional Softmax attention, (b) traditional linear attention, and (c) the proposed Local-Global Fusion Attention module.</em></p>
+        </div>
+
+        <p>Traditional self-attention mechanisms (Softmax-based) have a computational cost that grows quadratically (O(N^2)) with the sequence length N. BMSFormer utilizes a Local-Global Fusion Attention module:</p>
+        <ul>
+            <li><strong>Linear Complexity:</strong> By applying the associative property to change the order of computation, the complexity is reduced from O(N^2) to O(N).</li>
+            <li><strong>Feature Capture:</strong> Enhanced by ReLU activation, the module can focus on both long-term capacity degradation trends (global) and sensitive capacity regenerations or sudden fluctuations (local).</li>
+        </ul>
+
+        <h4 id="32-dsconv-module">3.2 Depthwise Separable Convolution (DSConv)</h4>
+        
+        <div class="img-container">
+            <img src="https://github.com/user-attachments/assets/6f4b5029-f7e9-48a0-955e-eab65437577c" width="80%" alt="DSConv Modules" />
+            <p class="img-caption"><em>Fig. 3 Structures of (a) Standard Conv, (b) Standard Depthwise Separable Conv, (c) DSConv-S, and (d) DSConv-L modules.</em></p>
+        </div>
+
+        <p>The model embeds two types of depthwise separable convolutions: DSConv-S (small kernel) and DSConv-L (large kernel).</p>
+        <ul>
+            <li><strong>Principle:</strong> Standard convolution is decomposed into Depthwise and Pointwise convolutions.</li>
+            <li><strong>Role:</strong> Without significantly increasing parameters, DSConv fuses multi-scale and multi-channel features, increasing feature diversity. This is crucial for distinguishing subtle characteristics across different battery aging stages.</li>
+        </ul>
+
+        <h3 id="4-experimental-validation">4. Experimental Validation & Performance Evaluation</h3>
+        <p>The paper validates the model using three major public datasets (Oxford, NASA, CALCE), covering various cathode materials (LCO, NCA, NCO-LCO) and operating conditions.</p>
+
+        <h3>Table 1 Detailed Description of the Three Battery Datasets</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th><strong>Data Sources</strong></th>
+                    <th>Oxford</th>
+                    <th>NASA</th>
+                    <th>CALCE</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Manufacturer</strong></td>
+                    <td>Kokam</td>
+                    <td>LG Chem</td>
+                    <td>LG Chem</td>
+                </tr>
+                <tr>
+                    <td><strong>Cell types</strong></td>
+                    <td>Pouch</td>
+                    <td>18650 Cylindrical</td>
+                    <td>Prismatic</td>
+                </tr>
+                <tr>
+                    <td><strong>Cathode material</strong></td>
+                    <td>NCO-LCO</td>
+                    <td>NCA</td>
+                    <td>LCO</td>
+                </tr>
+                <tr>
+                    <td><strong>Selected series</strong></td>
+                    <td>Cell (1–8)</td>
+                    <td>B00 (05–07 and 18)</td>
+                    <td>CS2 (35–38)</td>
+                </tr>
+                <tr>
+                    <td><strong>Battery count</strong></td>
+                    <td>8</td>
+                    <td>4</td>
+                    <td>4</td>
+                </tr>
+                <tr>
+                    <td><strong>Rated capacity (Ah)</strong></td>
+                    <td>0.74</td>
+                    <td>2</td>
+                    <td>1.1</td>
+                </tr>
+                <tr>
+                    <td><strong>Failure threshold</strong></td>
+                    <td>70%</td>
+                    <td>1.4 Ah (70%)</td>
+                    <td>0.84 Ah (76.4%)</td>
+                </tr>
+                <tr>
+                    <td><strong>Charge protocol</strong></td>
+                    <td>CC (2C)</td>
+                    <td>CC-CV (0.75C, 4.2V)</td>
+                    <td>CC-CV (0.5C, 4.2V)</td>
+                </tr>
+                <tr>
+                    <td><strong>Discharge protocol</strong></td>
+                    <td>Variance (Dynamic)</td>
+                    <td>CC (1C)</td>
+                    <td>CC (1C)</td>
+                </tr>
+                <tr>
+                    <td><strong>Cut-off voltage (V)</strong></td>
+                    <td>Ch: 4.2, Dis: 2.7</td>
+                    <td>Ch: 4.2, Dis: 2.7/2.5/2.2</td>
+                    <td>Ch: 4.2, Dis: 2.7</td>
+                </tr>
+                <tr>
+                    <td><strong>Cut-off current (A)</strong></td>
+                    <td>–</td>
+                    <td>Ch: 0.02</td>
+                    <td>Ch: 0.05</td>
+                </tr>
+                <tr>
+                    <td><strong>Temperature (°C)</strong></td>
+                    <td>40</td>
+                    <td>24</td>
+                    <td>24</td>
+                </tr>
+                <tr>
+                    <td><strong>Cycle numbers</strong></td>
+                    <td>5000–8200</td>
+                    <td>132–168</td>
+                    <td>881–995</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h4 id="41-accuracy">4.1 Accuracy Comparison</h4>
+        <p>In comparison with LSTM, Transformer, CNN-LSTM, and CNN-Transformer, BMSFormer demonstrated lower Mean Absolute Error (MAE) and Root Mean Square Error (RMSE) across all tested batteries. Even under severe SOH fluctuations, the prediction curve closely tracks the ground truth.</p>
+
+        <h4 id="42-deployment-efficiency">4.2 Deployment Efficiency</h4>
+        <p>The study specifically analyzed hardware costs. At comparable accuracy levels:</p>
+        <ul>
+            <li><strong>Parameters & Storage:</strong> The storage size of BMSFormer is approximately <strong>36.37 KB</strong>.</li>
+            <li><strong>Computing Speed:</strong> Due to the linear attention mechanism, training time is significantly reduced, and FLOPs (Floating Point Operations) remain at a low level.</li>
+        </ul>
+
+        <h4 id="43-stability">4.3 Stability Analysis</h4>
+        <p>Testing across 384 different hyperparameter combinations (layers, learning rates, dimensions, etc.) revealed that BMSFormer maintains stable estimation performance. This robustness is vital for real-world engineering, as it suggests the model does not require tedious fine-tuning for every specific battery type.</p>
+
+        <h3 id="5-conclusion">5. Conclusion</h3>
+        <p>BMSFormer provides a solution that balances accuracy and efficiency for battery health assessment. By leveraging high-efficiency attention design and lightweight convolutional modules, reliable online SOH monitoring can be achieved on resource-constrained hardware. This provides technical support for the development of next-generation intelligent Battery Management Systems.</p>
+
+        <hr>
+
+        <h3 id="paper-link">Paper Link</h3>
+        <p><strong>Title:</strong> BMSFormer: An efficient deep learning model for online state-of-health estimation of lithium-ion batteries under high-frequency early SOC data with strong correlated single health indicator</p>
+        <p><strong>Journal:</strong> <em>Energy</em>, 2024</p>
+        <p><strong>DOI:</strong> <a href="https://doi.org/10.1016/j.energy.2024.134030">10.1016/j.energy.2024.134030</a></p>
+
+        <pre><code>@article{li2024bmsformer,
+  title={BMSFormer: An efficient deep learning model for online state-of-health estimation of lithium-ion batteries under high-frequency early SOC data with strong correlated single health indicator},
+  author={Li, Xiaopeng and Zhao, Minghang and Zhong, Shisheng and Li, Junfu and Fu, Song and Yan, Zhiqi},
+  journal={Energy},
+  volume={313},
+  pages={134030},
+  year={2024},
+  publisher={Elsevier}
+}</code></pre>
+    </div>
+
+</body>
+</html>
